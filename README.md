@@ -52,44 +52,81 @@ Output:
 H0, H1, H2, H3, H4, H5: Word buffers with final message digest
 ```
 ## PROGRAM
-```
-import java.security.*;
-public class SHA1 {
-public static void main(String[] a) {
-try {
-MessageDigest md = MessageDigest.getInstance("SHA1");
-System.out.println("Message digest object info: ");
-System.out.println(" Algorithm = " +md.getAlgorithm());
-System.out.println(" Provider = " +md.getProvider());
-System.out.println(" ToString = " +md.toString());
-String input = "";
-md.update(input.getBytes());
-byte[] output = md.digest();
-System.out.println();
-System.out.println("SHA1(\""+input+"\") = " +bytesToHex(output));
-input = "abc";
-md.update(input.getBytes());
-output = md.digest();
-System.out.println();
-System.out.println("SHA1(\""+input+"\") = " +bytesToHex(output));
-input = "abcdefghijklmnopqrstuvwxyz";
-md.update(input.getBytes());
-output = md.digest();
-System.out.println();
-System.out.println("SHA1(\"" +input+"\") = " +bytesToHex(output));
-System.out.println(""); }
-catch (Exception e) {
-System.out.println("Exception: " +e);
-}
-}
-public static String bytesToHex(byte[] b) {
-char hexDigit[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-StringBuffer buf = new StringBuffer();
-for (int j=0; j<b.length; j++) {
-buf.append(hexDigit[(b[j] >> 4) & 0x0f]);
-buf.append(hexDigit[b[j] & 0x0f]); }
-return buf.toString(); }
-}
+```python
+def sha1(message):
+    # Pre-processing: Padding the message
+    original_message = message
+    # Padding the message to make its length a multiple of 512 bits
+    message += b'\x80'  # Appending a single '1' bit
+    while (len(message) * 8) % 512 != 448:
+        message += b'\x00'  # Appending '0' bits until length % 512 == 448
+    # Appending the original message length as a 64-bit big-endian integer
+    message += (len(original_message) * 8).to_bytes(8, byteorder='big')
+
+    # Initialize variables
+    h0 = 0x67452301
+    h1 = 0xEFCDAB89
+    h2 = 0x98BADCFE
+    h3 = 0x10325476
+    h4 = 0xC3D2E1F0
+
+    # Helper functions
+    def left_rotate(n, b):
+        return ((n << b) | (n >> (32 - b))) & 0xFFFFFFFF
+
+    # Process the message in 512-bit chunks
+    for i in range(0, len(message), 64):
+        chunk = message[i:i+64]
+
+        # Break chunk into 16 words of 32 bits each
+        words = [int.from_bytes(chunk[j:j+4], byteorder='big') for j in range(0, 64, 4)]
+        # Padding the words list to ensure it has length 80
+        words += [0] * (80 - len(words))
+
+        # Initialize hash values for this chunk
+        a = h0
+        b = h1
+        c = h2
+        d = h3
+        e = h4
+
+        # Main loop
+        for j in range(80):
+            if j < 20:
+                f = (b & c) | ((~b) & d)
+                k = 0x5A827999
+            elif j < 40:
+                f = b ^ c ^ d
+                k = 0x6ED9EBA1
+            elif j < 60:
+                f = (b & c) | (b & d) | (c & d)
+                k = 0x8F1BBCDC
+            else:
+                f = b ^ c ^ d
+                k = 0xCA62C1D6
+
+            temp = left_rotate(a, 5) + f + e + k + words[j] & 0xFFFFFFFF
+            e = d
+            d = c
+            c = left_rotate(b, 30)
+            b = a
+            a = temp
+
+        # Add this chunk's hash to result so far
+        h0 = (h0 + a) & 0xFFFFFFFF
+        h1 = (h1 + b) & 0xFFFFFFFF
+        h2 = (h2 + c) & 0xFFFFFFFF
+        h3 = (h3 + d) & 0xFFFFFFFF
+        h4 = (h4 + e) & 0xFFFFFFFF
+
+    # Produce the final hash value
+    return '%08x%08x%08x%08x%08x' % (h0, h1, h2, h3, h4)
+
+# Example usage:
+message = b"Hello, World!"
+hashed_message = sha1(message)
+print("SHA-1 hash of '{}' is: {}".format(message, hashed_message))
+
 ```
 ## OUTPUT:
 ```
