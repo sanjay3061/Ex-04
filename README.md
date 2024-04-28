@@ -53,73 +53,52 @@ H0, H1, H2, H3, H4, H5: Word buffers with final message digest
 ```
 ## PROGRAM
 ```python
-def sha1(message):
-    # Step 1: Append Padding Bits
-    original_message = message
-    message += b'\x80'  # Append a single '1' bit
-    while (len(message) * 8) % 512 != 448:
-        message += b'\x00'  # Append '0' bits until length % 512 == 448
 
-    # Step 2: Append Length
-    message += (len(original_message) * 8).to_bytes(8, byteorder='big')
+import hashlib
 
-    # Step 5: Initialize Buffers
-    h0 = 0x67452301
-    h1 = 0xEFCDAB89
-    h2 = 0x98BADCFE
-    h3 = 0x10325476
-    h4 = 0xC3D2E1F0
+def main():
+    try:
+        md = hashlib.sha1()
+        print("Message digest object info: ")
+        print(" Algorithm = " + md.name)
+        print(" ToString = " + str(md))
+        
+        input_str = "".encode('utf-8')
+        md.update(input_str)
+        output = md.digest()
+        print()
+        print("SHA1(\"" + input_str.decode('utf-8') + "\") = " + bytes_to_hex(output))
+        
+        input_str = "san".encode('utf-8')
+        md.update(input_str)
+        output = md.digest()
+        print()
+        print("SHA1(\"" + input_str.decode('utf-8') + "\") = " + bytes_to_hex(output))
+        
+        input_str = "sanjay".encode('utf-8')
+        md.update(input_str)
+        output = md.digest()
+        print()
+        print("SHA1(\"" + input_str.decode('utf-8') + "\") = " + bytes_to_hex(output))
+        print("")
+    except Exception as e:
+        print("Exception: " + str(e))
 
-    # Step 6: Processing Message in 512-bit blocks
-    for i in range(0, len(message), 64):
-        chunk = message[i:i+64]
-        words = [int.from_bytes(chunk[j:j+4], byteorder='big') for j in range(0, 64, 4)]
+def bytes_to_hex(b):
+    hex_digits = '0123456789ABCDEF'
+    buf = ""
+    for byte in b:
+        buf += hex_digits[(byte >> 4) & 0x0F]
+        buf += hex_digits[byte & 0x0F]
+    return buf
 
-        # Step 6: Pseudo Code
-        for t in range(16, 80):
-            words.append((words[t-3] ^ words[t-8] ^ words[t-14] ^ words[t-16]) << 1)
-
-        a, b, c, d, e = h0, h1, h2, h3, h4
-
-        for t in range(80):
-            if t < 20:
-                f = (b & c) | ((~b) & d)
-                k = 0x5A827999
-            elif t < 40:
-                f = b ^ c ^ d
-                k = 0x6ED9EBA1
-            elif t < 60:
-                f = (b & c) | (b & d) | (c & d)
-                k = 0x8F1BBCDC
-            else:
-                f = b ^ c ^ d
-                k = 0xCA62C1D6
-
-            temp = (a << 5) + f + e + words[t] + k & 0xFFFFFFFF
-            e = d
-            d = c
-            c = b << 30
-            b = a
-            a = temp
-
-        # Update buffers
-        h0 = (h0 + a) & 0xFFFFFFFF
-        h1 = (h1 + b) & 0xFFFFFFFF
-        h2 = (h2 + c) & 0xFFFFFFFF
-        h3 = (h3 + d) & 0xFFFFFFFF
-        h4 = (h4 + e) & 0xFFFFFFFF
-
-    # Output the final message digest
-    return '%08x%08x%08x%08x%08x' % (h0, h1, h2, h3, h4)
-
-# Example usage:
-message = b"Hello, World!"
-hashed_message = sha1(message)
-print("SHA-1 hash of '{}' is: {}".format(message, hashed_message))
+if __name__ == "__main__":
+    main()
 
 ```
 ## OUTPUT:
-![image](https://github.com/sanjay3061/Ex-04/assets/121215929/beae4709-506d-4b58-94dd-8568d4a36bf4)
+
+![image](https://github.com/sanjay3061/Ex-04/assets/121215929/a18bdd3a-6128-4a0b-a9e0-41cb91197b31)
 
 
 
@@ -149,60 +128,118 @@ forgery.
 ```
 ## PROGRAM: (Digital Signature Standard)
 ```python
-# Function to check if two numbers are coprime
-def are_coprime(a, b):
-    while b != 0:
-        a, b = b, a % b
-    return a == 1
+import random
 
-# Function to calculate modular inverse using extended Euclidean algorithm
-def mod_inverse(a, m):
-    m0, x0, x1 = m, 0, 1
-    while a > 1:
-        q = a // m
-        m, a = a % m, m
-        x0, x1 = x1 - q * x0, x0
-    return x1 if x1 >= 0 else x1 + m0
+class DSA:
+    @staticmethod
+    def get_next_prime(ans):
+        test = int(ans)
+        while not DSA.is_probable_prime(test):
+            test += 1
+        return test
 
-# Function to verify the signature
-def verify_signature(p, alpha, beta, x, y):
-    # Check if alpha and beta are coprime to p-1
-    if not are_coprime(alpha, p - 1) or not are_coprime(beta, p - 1):
-        print("Error: Alpha and beta must be coprime to p-1.")
-        return False
-    
-    # Calculate modular inverse of beta
-    beta_inverse = mod_inverse(beta, p - 1)
-    
-    # Calculate (alpha^x * beta_inverse^y) mod p
-    lhs = pow(alpha, x, p)
-    rhs = pow(beta_inverse, y, p)
-    result = (lhs * rhs) % p
-    
-    # If result matches alpha, signature is verified
-    return result == alpha
+    @staticmethod
+    def is_probable_prime(n, k=5):
+        if n <= 1:
+            return False
+        if n <= 3:
+            return True
+        if n % 2 == 0:
+            return False
 
-def main():
-    # Given values
-    p = 23  # Prime number
-    alpha = 5  # Random coprime
-    beta = 7  # Random coprime
-    x = 4  # x's original signature
-    y = 9  # Signature to be verified
+        # Miller-Rabin primality test
+        def miller_rabin(n, d):
+            a = random.randint(2, n - 2)
+            x = pow(a, d, n)
+            if x == 1 or x == n - 1:
+                return True
+            while d != n - 1:
+                x = pow(x, 2, n)
+                d *= 2
+                if x == 1:
+                    return False
+                if x == n - 1:
+                    return True
+            return False
 
-    # Verify the signature
-    is_valid = verify_signature(p, alpha, beta, x, y)
-    if is_valid:
-        print("Signature is verified.")
-    else:
-        print("Signature is not verified.")
+        # Write n as (2^r)*d + 1
+        d = n - 1
+        while d % 2 == 0:
+            d //= 2
+        for _ in range(k):
+            if not miller_rabin(n, d):
+                return False
+        return True
+
+    @staticmethod
+    def find_q(n):
+        start = 2
+        while not DSA.is_probable_prime(n):
+            while n % start != 0:
+                start += 1
+            n //= start
+        return n
+
+    @staticmethod
+    def get_gen(p, q, rand_obj):
+        h = random.randint(2, p - 2)
+        return pow(h, (p - 1) // q, p)
+
+    @staticmethod
+    def main():
+        rand_obj = random.SystemRandom()
+        p = DSA.get_next_prime("10600")
+        q = DSA.find_q(p - 1)
+        g = DSA.get_gen(p, q, rand_obj)
+
+        print("\n simulation of Digital Signature Algorithm \n")
+        print("\n global public key components are:\n")
+        print("\np is:", p)
+        print("\nq is:", q)
+        print("\ng is:", g)
+
+        x = rand_obj.randint(2, q - 1)
+        y = pow(g, x, p)
+        k = rand_obj.randint(2, q - 1)
+        r = pow(g, k, p) % q
+        hash_val = rand_obj.randint(2, p - 1)
+        k_inv = pow(k, -1, q)
+        s = (k_inv * (hash_val + x * r)) % q
+
+        print("\nsecret information are:\n")
+        print("x (private) is:", x)
+        print("k (secret) is:", k)
+        print("y (public) is:", y)
+        print("h (rndhash) is:", hash_val)
+
+        print("\n generating digital signature:\n")
+        print("r is:", r)
+        print("s is:", s)
+
+        w = pow(s, -1, q)
+        u1 = (hash_val * w) % q
+        u2 = (r * w) % q
+        v = ((pow(g, u1, p) * pow(y, u2, p)) % p) % q
+
+        print("\nverifying digital signature (checkpoints):\n")
+        print("w is:", w)
+        print("u1 is:", u1)
+        print("u2 is:", u2)
+        print("v is:", v)
+
+        if v == r:
+            print("\nsuccess: digital signature is verified!\n", r)
+        else:
+            print("\nerror: incorrect digital signature\n")
+
 
 if __name__ == "__main__":
-    main()
+    DSA.main()
 
 ```
 ## OUTPUT:
-![image](https://github.com/sanjay3061/Ex-04/assets/121215929/2a295bff-0f58-452d-a0af-8c56460dcf2a)
+
+![image](https://github.com/sanjay3061/Ex-04/assets/121215929/40abc26c-e666-4fcd-9683-20672ff1ea0e)
 
 ## RESULT:
 Thus program to implement the signature scheme named digital signature standard (Euclidean Algorithm) is implementeds successfully.
